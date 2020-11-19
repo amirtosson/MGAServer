@@ -27,7 +27,7 @@ MGATcpServer::~MGATcpServer()
 
 void MGATcpServer::MSGHandling(MGAServerClientMSG *msg)
 {
-    QString password, user, host;
+    QString password, user, host, role;
     if((msg->GetMSGType() == EMSGType::eConnectToDB)
        && SerializeUser(msg, &host , &user, &password))
     {
@@ -44,11 +44,26 @@ void MGATcpServer::MSGHandling(MGAServerClientMSG *msg)
     {
         DisconnectSQL();
     }
+    else
+    if (msg->GetMSGType() == EMSGType::eGetUsersList)
+    {
+        GetUsersList();
+    }
+    else
+    if ((msg->GetMSGType() == EMSGType::eAddNewUser)
+        && SerializeNewUser(msg, &host , &user, &password, &role))
+    {
+        AddNewUser(&host , &user, &password, &role);
+    }
+    if ((msg->GetMSGType() == EMSGType::eDeleteUser)
+        && SerializeUser(msg, &host , &user, &password, false))
+    {
+        DeleteUser(&host , &user);
+    }
 }
 
 void MGATcpServer::newConnection()
 {
-    qDebug()<<"newConnecton";
     // need to grab the socket
     socket = server->nextPendingConnection();
     connect(socket, SIGNAL(connected()), this, SLOT(connected()));
@@ -76,7 +91,23 @@ void MGATcpServer::readyRead()
     MSGHandling(&msg);
 }
 
-bool MGATcpServer::SerializeUser(MGAServerClientMSG *msg, QString *host, QString *user, QString *psw)
+bool MGATcpServer::SerializeUser(MGAServerClientMSG *msg, QString *host, QString *user, QString *psw, bool includePWD)
+{
+    if(msg->GetBodyLength() < 1) return false;
+    try
+    {
+        *host = msg->GetValue(JSON_ATT_HOST,0);
+        *user = msg->GetValue(JSON_ATT_USER,1);
+        if(includePWD)*psw = msg->GetValue(JSON_ATT_PWD,2);
+    }
+    catch (...)
+    {
+        return false;
+    }
+    return true;
+}
+
+bool MGATcpServer::SerializeNewUser(MGAServerClientMSG *msg, QString *host, QString *user, QString *psw, QString *role)
 {
     if(msg->GetBodyLength() < 1) return false;
     try
@@ -84,6 +115,7 @@ bool MGATcpServer::SerializeUser(MGAServerClientMSG *msg, QString *host, QString
         *host = msg->GetValue(JSON_ATT_HOST,0);
         *user = msg->GetValue(JSON_ATT_USER,1);
         *psw  = msg->GetValue(JSON_ATT_PWD,2);
+        *role  = msg->GetValue(JSON_ATT_LOGIN_USER_ROLE,3);
     }
     catch (...)
     {
@@ -114,6 +146,7 @@ void MGATcpServer::DisconnectSQL()
         MGAServerClientMSG msg(EMSGType::eDisconnectDB);
         msg.InsertInMSGBody(JSON_ATT_DISCONNECTED,"true");
         socket->write(msg.GetMSGAsByteArray());
+        socket->waitForBytesWritten(2000);
         socket->flush();
     }
 }
@@ -132,7 +165,64 @@ void MGATcpServer::ConnectToSQLDriver(QString *qsHost, QString *qsUser, QString 
     }
 }
 
-QString  MGATcpServer::GetUserRole(QString *host, QString *user)
+void MGATcpServer::GetUsersList()
+{
+    QStringList usersList = SQLGetUsersListAsQStringList();
+    MGAServerClientMSG msg(EMSGType::eGetUsersList);
+    for(int i=0; i<usersList.size(); ++i)
+    {
+        msg.InsertInMSGBody(JSON_ATT_USER,usersList[i]);
+    }
+    socket->write(msg.GetMSGAsByteArray());
+    socket->waitForBytesWritten(1000);
+    socket->flush();
+}
+
+void MGATcpServer::AddNewUser(QString *qsHost, QString *qsUser, QString *qsPWD, QString *qsRole)
+{
+
+    MGAServerClientMSG msg(EMSGType::eAddNewUser);
+    if (SQLAddNewUer(qsHost,qsUser,qsPWD,qsRole))
+    {
+        msg.InsertInMSGBody(JSON_ATT_ADDED,TRUE);
+    }
+    else
+    {
+        msg.InsertInMSGBody(JSON_ATT_ADDED,FALSE);
+    }
+    socket->write(msg.GetMSGAsByteArray());
+    socket->flush();
+}
+
+void MGATcpServer::DeleteUser(QString *host, QString *qsUser)
+{
+    MGAServerClientMSG msg(EMSGType::eDeleteUser);
+    if(SQLDeleteUer(host,qsUser))
+    {
+        msg.InsertInMSGBody(JSON_ATT_DELETED,TRUE);
+    }
+    else
+    {
+        msg.InsertInMSGBody(JSON_ATT_DELETED,FALSE);
+    }
+    socket->write(msg.GetMSGAsByteArray());
+    socket->flush();
+}
+
+void MGATcpServer::GetMembersList()
+{
+    QStringList membersList = SQLGetUsersListAsQStringList();
+    MGAServerClientMSG msg(EMSGType::eGetUsersList);
+    for(int i=0; i<membersList.size(); ++i)
+    {
+        msg.InsertInMSGBody(JSON_ATT_USER,membersList[i]);
+    }
+    socket->write(msg.GetMSGAsByteArray());
+    socket->waitForBytesWritten(1000);
+    socket->flush();
+}
+
+QString MGATcpServer::GetUserRole(QString *host, QString *user)
 {
     std::string str = GetLoginUserRole(host,user);
     return ExtractRoleFromGrantsSQLStatement(&str);
@@ -141,8 +231,9 @@ QString  MGATcpServer::GetUserRole(QString *host, QString *user)
 void MGATcpServer::SendClientDBIsConnected(QString *role)
 {
     MGAServerClientMSG msg(EMSGType::eConnectToDB);
-    msg.InsertInMSGBody(JSON_ATT_CONNECTED,"true");
+    msg.InsertInMSGBody(JSON_ATT_CONNECTED,TRUE);
     msg.InsertInMSGBody(JSON_ATT_LOGIN_USER_ROLE,*role);
+    QStringList usersList = SQLGetUsersListAsQStringList();
     socket->write(msg.GetMSGAsByteArray());
     socket->flush();
 }

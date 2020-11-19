@@ -7,12 +7,18 @@
 #define JSON_ATT_LOGIN_USER_ROLE        "role"
 #define JSON_ATT_CONNECTED              "connected"
 #define JSON_ATT_DISCONNECTED           "disconnected"
+#define JSON_ATT_ADDED                  "added"
+#define JSON_ATT_DELETED                "deleted"
+
+#define TRUE                            "true"
+#define FALSE                            "true"
 
 #define FIELD_ROLE_ADMIN                "admin"
 #define FIELD_ROLE_USER                 "user"
 
 #define SQL_ADMIN_GRANT                 "ALL PRIVILEGES"
 #define SQL_USER_GRANT                  "SELECT"
+
 
 
 #endif // SERVERDEFINES_H

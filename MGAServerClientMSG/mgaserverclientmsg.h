@@ -10,19 +10,27 @@
 #include <QJsonDocument>
 
 
-
-
-////MSG header key
-//#define MSG_TYPE_KEY                        "MSGTYP"
-////MSG header value
-//#define CONNECT_TO_SQL_MSG_ID               "CTSQLD"
-//#define GET_USERS_LIST_MSG_ID               "GUSRSL"
-//#define GET_MEMBERS_LIST_MSG_ID             "GMEMSL"
 enum class EMSGType
 {
     eConnectToDB,
     eGetUserRole,
-    eDisconnectDB
+    eDisconnectDB,
+    eGetUsersList,
+    eAddNewUser,
+    eDeleteUser,
+    eEditUser,
+    eGetMembersList,
+    eAddNewMember,
+    eDeleteMember,
+    eEditMember,
+    eGetExpList,
+    eAddNewExp,
+    eDeleteExp,
+    eEditExp,
+    eGetAppointsList,
+    eAddNewAppoint,
+    eDeleteAppoint,
+    eEditAppoint
 };
 
 class MGAServerClientMSG

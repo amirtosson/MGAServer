@@ -5,6 +5,7 @@
 #include <QTcpServer>
 #include <QTcpSocket>
 #include <QDebug>
+#include <QString>
 #include <QJsonObject>
 #include <QJsonArray>
 #include <QJsonDocument>
@@ -40,10 +41,15 @@ private:
     QTcpSocket *socket;
 
 private:
-    bool SerializeUser(MGAServerClientMSG *msg, QString *host, QString *user, QString *psw);
+    bool SerializeUser(MGAServerClientMSG *msg, QString *host, QString *user, QString *psw, bool includePWD = true);
+    bool SerializeNewUser(MGAServerClientMSG *msg, QString *host, QString *user, QString *psw, QString *role);
     bool SerializeLoginUserName(MGAServerClientMSG *msg, QString *host, QString *user);
     void DisconnectSQL();
     void ConnectToSQLDriver(QString *qsHost, QString *qsUser, QString *qsPWD);
+    void GetUsersList();
+    void AddNewUser(QString *qsHost, QString *qsUser, QString *qsPWD, QString *qsRole);
+    void DeleteUser(QString *host, QString *qsUser);
+    void GetMembersList();
     QString GetUserRole(QString *host, QString *user);
     void SendClientDBIsConnected(QString *role);
     //mysql has no role-based feature, so this function is to convert grants to role
